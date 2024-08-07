@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import VideoUpload from './VideoUpload';
 import { Pose } from '@mediapipe/pose';
 import * as poseModule from '@mediapipe/pose';
@@ -6,12 +6,44 @@ import { Camera } from '@mediapipe/camera_utils';
 import { drawConnectors, drawLandmarks } from '@mediapipe/drawing_utils';
 
 const KneeAngleAnalysis = () => {
-  const [mode, setMode] = useState('upload'); // 'upload' or 'camera'
+  const [mode, setMode] = useState('upload');
   const [video, setVideo] = useState(null);
   const canvasRef = useRef(null);
   const [kneeAngle, setKneeAngle] = useState(0);
   const [camera, setCamera] = useState(null);
   const videoRef = useRef(null);
+
+  const calculateAngle = (hip, knee, ankle) => {
+    const radians = Math.atan2(ankle.y - knee.y, ankle.x - knee.x) - 
+                    Math.atan2(hip.y - knee.y, hip.x - knee.x);
+    let angle = Math.abs(radians * 180.0 / Math.PI);
+    if (angle > 180.0) {
+      angle = 360 - angle;
+    }
+    return Math.round(angle);
+  };
+
+  const onResults = useCallback((results) => {
+    if (canvasRef.current) {
+      const canvasCtx = canvasRef.current.getContext('2d');
+      canvasCtx.save();
+      canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      canvasCtx.drawImage(results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
+      
+      if (results.poseLandmarks) {
+        drawConnectors(canvasCtx, results.poseLandmarks, poseModule.POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 4 });
+        drawLandmarks(canvasCtx, results.poseLandmarks, { color: '#FF0000', lineWidth: 1 });
+        
+        const hip = results.poseLandmarks[23];
+        const knee = results.poseLandmarks[25];
+        const ankle = results.poseLandmarks[27];
+        
+        const angle = calculateAngle(hip, knee, ankle);
+        setKneeAngle(angle);
+      }
+      canvasCtx.restore();
+    }
+  }, []);
 
   useEffect(() => {
     const pose = new Pose({
@@ -56,39 +88,7 @@ const KneeAngleAnalysis = () => {
     return () => {
       if (camera) camera.stop();
     };
-  }, [mode, video]);
-
-  const onResults = (results) => {
-    if (canvasRef.current) {
-      const canvasCtx = canvasRef.current.getContext('2d');
-      canvasCtx.save();
-      canvasCtx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-      canvasCtx.drawImage(results.image, 0, 0, canvasRef.current.width, canvasRef.current.height);
-      
-      if (results.poseLandmarks) {
-        drawConnectors(canvasCtx, results.poseLandmarks, poseModule.POSE_CONNECTIONS, { color: '#00FF00', lineWidth: 4 });
-        drawLandmarks(canvasCtx, results.poseLandmarks, { color: '#FF0000', lineWidth: 1 });
-        
-        const hip = results.poseLandmarks[23]; // Right hip
-        const knee = results.poseLandmarks[25]; // Right knee
-        const ankle = results.poseLandmarks[27]; // Right ankle
-        
-        const angle = calculateAngle(hip, knee, ankle);
-        setKneeAngle(angle);
-      }
-      canvasCtx.restore();
-    }
-  };
-
-  const calculateAngle = (hip, knee, ankle) => {
-    const radians = Math.atan2(ankle.y - knee.y, ankle.x - knee.x) - 
-                    Math.atan2(hip.y - knee.y, hip.x - knee.x);
-    let angle = Math.abs(radians * 180.0 / Math.PI);
-    if (angle > 180.0) {
-      angle = 360 - angle;
-    }
-    return Math.round(angle);
-  };
+  }, [mode, video, camera, onResults]);
 
   const handleVideoLoaded = (videoElement) => {
     setVideo(videoElement);
