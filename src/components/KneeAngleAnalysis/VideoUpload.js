@@ -1,9 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 
 const VideoUpload = ({ onVideoLoaded }) => {
-  const videoRef = useRef(null);
-
-
 
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
