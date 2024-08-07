@@ -1,25 +1,53 @@
-import logo from './logo.svg';
-import './App.css';
+import React, { useState } from 'react';
+import { BrowserRouter as Router, Route, Routes, Navigate } from 'react-router-dom';
+import Login from './components/Auth/Login';
+import Signup from './components/Auth/Signup';
+import MainMenu from './components/MainMenu/MainMenu';
+import KneeAngleAnalysis from './components/KneeAngleAnalysis/KneeAngleAnalysis';
+// import ProgressTracker from './components/ProgressTracker';
+import { Auth } from './services/Auth';
 
-function App() {
+const App = () => {
+  const [user, setUser] = useState(Auth.getCurrentUser());
+
+  const PrivateRoute = ({ children }) => {
+    return user ? children : <Navigate to="/login" />;
+  };
+
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.js</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
+    <Router>
+      <div className="App">
+        <Routes>
+          <Route path="/login" element={<Login setUser={setUser} />} />
+          <Route path="/signup" element={<Signup setUser={setUser} />} />
+          <Route 
+            path="/" 
+            element={
+              <PrivateRoute>
+                <MainMenu />
+              </PrivateRoute>
+            } 
+          />
+          <Route 
+            path="/knee-angle" 
+            element={
+              <PrivateRoute>
+                <KneeAngleAnalysis />
+              </PrivateRoute>
+            } 
+          />
+          {/* <Route 
+            path="/progress" 
+            element={
+              <PrivateRoute>
+                <ProgressTracker />
+              </PrivateRoute>
+            } 
+          /> */}
+        </Routes>
+      </div>
+    </Router>
   );
-}
+};
 
 export default App;
